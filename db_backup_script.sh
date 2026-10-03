@@ -43,23 +43,20 @@ RETENTION_MINUTES=10080
 : "${TIGRIS_SECRET_ACCESS_KEY:?TIGRIS_SECRET_ACCESS_KEY is not set}"
 
 # ------------------------------------------------------------
-# Timestamp
-# UTC is used deliberately so local and Tigris retention
-# behave consistently.
+# Timestamp UTC is used deliberately so local and Tigris retention behave consistently
 # ------------------------------------------------------------
 TIMESTAMP="$(date -u '+%Y-%m-%d_%H-%M-%S')"
 
 BACKUP_NAME="dataoorts_${TIMESTAMP}.dump"
 BACKUP_PATH="${BACKUP_DIR}/${BACKUP_NAME}"
 
-# Virtual-hosted-style Tigris URL.
-# Tigris uses virtual-hosted-style addressing by default.
+# Virtual-hosted-style Tigris URL
+# Tigris uses virtual-hosted-style addressing by default
 TIGRIS_HOST="${TIGRIS_BUCKET}.t3.storage.dev"
 TIGRIS_OBJECT_URL="https://${TIGRIS_HOST}/${TIGRIS_PREFIX}/${BACKUP_NAME}"
 
 # ------------------------------------------------------------
-# Lock
-# Prevent two cron runs at the same time.
+# Lock Prevent two job runs at the same time
 # ------------------------------------------------------------
 LOCK_DIR="/var/run/dataoorts-backup.lock"
 
@@ -423,8 +420,7 @@ while IFS= read -r OBJECT_KEY; do
 
     if (( OBJECT_EPOCH < CUTOFF_EPOCH )); then
 
-        # URL encode only the object key by using curl's
-        # --path-as-is with the known safe backup filename.
+        # URL encode only the object key by using curl's --path-as-is with the known safe backup filename
         DELETE_URL="https://${TIGRIS_HOST}/${OBJECT_KEY}"
 
         echo "Deleting old Tigris backup:"
