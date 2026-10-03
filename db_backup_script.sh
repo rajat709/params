@@ -1,12 +1,9 @@
-########### execute this command manually to install the certificates ############
-# apt-get update && apt-get install --reinstall -y ca-certificates curl && update-ca-certificates
-
 #!/bin/bash
 set -Eeuo pipefail
 
 # ============================================================
 # DATAOORTS PostgreSQL FULL BACKUP
-# Retention: 7 x 24 hours
+# Trigger: Internal Job
 # ============================================================
 
 # ------------------------------------------------------------
@@ -50,13 +47,12 @@ TIMESTAMP="$(date -u '+%Y-%m-%d_%H-%M-%S')"
 BACKUP_NAME="dataoorts_${TIMESTAMP}.dump"
 BACKUP_PATH="${BACKUP_DIR}/${BACKUP_NAME}"
 
-# Virtual-hosted-style Tigris URL
-# Tigris uses virtual-hosted-style addressing by default
+# Virtual-hosted-style Tigris URL - Tigris uses virtual-hosted-style addressing by default
 TIGRIS_HOST="${TIGRIS_BUCKET}.t3.storage.dev"
 TIGRIS_OBJECT_URL="https://${TIGRIS_HOST}/${TIGRIS_PREFIX}/${BACKUP_NAME}"
 
 # ------------------------------------------------------------
-# Lock Prevent two job runs at the same time
+# Lock Prevent two jobs runs at the same time
 # ------------------------------------------------------------
 LOCK_DIR="/var/run/dataoorts-backup.lock"
 
@@ -119,14 +115,14 @@ echo
 # ------------------------------------------------------------
 echo "[2/7] Checking HTTP client..."
 
-if ! command -v curl >/dev/null 2>&1; then
+if ! command -v curl >/dev/null 2>&1 || [[ ! -r /etc/ssl/certs/ca-certificates.crt ]]; then
 
-    echo "curl not found."
-    echo "Installing curl..."
+    echo "curl or CA certificates missing."
+    echo "Installing required packages..."
 
     apt-get update
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends curl
-    rm -rf /var/lib/apt/lists/
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends curl ca-certificates
+    update-ca-certificates
 
 fi
 
@@ -378,9 +374,7 @@ CUTOFF_EPOCH="$(
     date -u -d '7 days ago' '+%s'
 )"
 
-# We deliberately use the timestamp embedded in our own backup
-# filename. That makes retention independent of Tigris's
-# LastModified formatting/time zone.
+# We deliberately use the timestamp embedded in our own backup filename. That makes retention independent of Tigris's LastModified formatting/time zone
 grep -oP '(?<=<Key>)[^<]+' "$LIST_FILE" |
 while IFS= read -r OBJECT_KEY; do
 
@@ -413,14 +407,14 @@ while IFS= read -r OBJECT_KEY; do
         continue
     fi
 
-    # Current backup should never be deleted.
-    if [[ "$OBJECT_KEY" == "${S3_KEY:-}" ]]; then
+    # Current backup should never be deleted
+    if [[ "$OBJECT_KEY" == "${TIGRIS_PREFIX}/${BACKUP_NAME}" ]]; then
         continue
     fi
 
     if (( OBJECT_EPOCH < CUTOFF_EPOCH )); then
 
-        # URL encode only the object key by using curl's --path-as-is with the known safe backup filename
+        # URL encode only the object key by using curl's  --path-as-is with the known safe backup filename
         DELETE_URL="https://${TIGRIS_HOST}/${OBJECT_KEY}"
 
         echo "Deleting old Tigris backup:"
