@@ -1,0 +1,14 @@
+app = "dataoortsdb"
+primary_region = "dfw"
+
+[build]
+  image = "postgres:18.6"
+
+[env]
+  POSTGRES_DB = "dataoorts"
+  POSTGRES_USER = "dataoorts"
+  PGDATA = "/var/lib/postgresql/18/docker"
+
+[[mounts]]
+  source = "pg_data"
+  destination = "/var/lib/postgresql"
